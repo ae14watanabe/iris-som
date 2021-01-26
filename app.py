@@ -231,6 +231,6 @@ def update_ls(index_selected_feature, clickData):
 
 
 if __name__ == '__main__':
-    app.run_server()
+    app.run_server(debug=True)
 
 
