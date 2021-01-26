@@ -210,7 +210,7 @@ def update_ls(index_selected_feature, clickData):
                     marker=dict(
                         symbol='x'
                     ),
-                    selector=dict(name='clicked_point')
+                    selector=dict(name='clicked_point', type='scatter')
                 )
             elif clickData['points'][0]['curveNumber'] == index_z:
                 # print('clicked latent variable')
@@ -221,7 +221,7 @@ def update_ls(index_selected_feature, clickData):
                     marker=dict(
                         symbol='circle'
                     ),
-                    selector=dict(name='clicked_point')
+                    selector=dict(name='clicked_point', type='scatter')
                 )
                 # if latent variable is clicked
                 # fig_ls.update_traces(visible=False, selector=dict(name='clicked_point'))
