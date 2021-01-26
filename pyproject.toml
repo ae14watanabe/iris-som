@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "iris-som"
+version = "0.1.0"
+description = ""
+authors = ["Ryuji Watanabe <watanabe.ryuji717@mail.kyutech.jp>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+numpy = "^1.19.2"
+tqdm = "^4.49.0"
+sklearn = "^0.0"
+dash = "^1.16.1"
+gunicorn = "^20.0.4"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
