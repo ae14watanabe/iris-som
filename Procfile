@@ -1,1 +1,1 @@
-web: gunicorn tutorials/cp_iris:server
+web: gunicorn app:server
