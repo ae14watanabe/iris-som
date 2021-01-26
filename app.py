@@ -188,6 +188,7 @@ def update_bar(clickData):
 )
 def update_ls(index_selected_feature, clickData):
     # print(clickData)
+    print(index_selected_feature, clickData)
     ctx = dash.callback_context
     if not ctx.triggered or ctx.triggered[0]['value'] is None:
         return dash.no_update
@@ -196,10 +197,10 @@ def update_ls(index_selected_feature, clickData):
         # print(clicked_id_text)
         if clicked_id_text == 'feature_dropdown':
             # print(index_selected_feature)
-            fig_ls.update_traces(z=som.Y[:, index_selected_feature], selector=dict(type='contour'))
+            fig_ls.update_traces(z=som.Y[:, index_selected_feature],
+                                 selector=dict(type='contour', name='cp'))
             return fig_ls
         elif clicked_id_text == 'left-graph':
-            index_clicked = clickData['points'][0]['pointIndex']
             if clickData['points'][0]['curveNumber'] == index_grids:
                 # if contour is clicked
                 # print('clicked map')
@@ -225,6 +226,9 @@ def update_ls(index_selected_feature, clickData):
                 )
                 # if latent variable is clicked
                 # fig_ls.update_traces(visible=False, selector=dict(name='clicked_point'))
+
+            fig_ls.update_traces(z=som.Y[:, index_selected_feature],
+                                 selector=dict(type='contour', name='cp'))
             return fig_ls
         else:
             return dash.no_update
