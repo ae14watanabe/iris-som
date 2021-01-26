@@ -1,7 +1,6 @@
 import os
 from som import SOM
 from sklearn.datasets import load_iris
-import torch
 import plotly.express as px
 import dash
 import dash_core_components as dcc
