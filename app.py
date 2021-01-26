@@ -231,7 +231,7 @@ def _main(app):
                 return dash.no_update
 
 
-    app.run_server(debug=True)
+    app.run_server()
 
 
 _main(app)
