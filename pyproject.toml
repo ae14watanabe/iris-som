@@ -11,6 +11,7 @@ tqdm = "^4.49.0"
 sklearn = "^0.0"
 dash = "^1.16.1"
 gunicorn = "^20.0.4"
+pandas = "^1.2.1"
 
 [tool.poetry.dev-dependencies]
 
