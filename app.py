@@ -1,6 +1,7 @@
 import os
 from som import SOM
 from sklearn.datasets import load_iris
+from sklearn.utils import check_random_state
 import plotly.express as px
 import dash
 import dash_core_components as dcc
@@ -22,21 +23,15 @@ def _main(app):
     X = iris.data
 
     n_dim_latent = 2
-    n_grids = 30
-    n_epoch = 10
-    init = 'pca'
-    shape_latent_space = 'unit_hypercube'
-    schedule_sigma = {'max': 0.5, 'min': 0.1}
+    n_epoch = 20
 
-    som = SOM(X=torch.tensor(X), n_dim_latent=n_dim_latent, init=init,
-              shape_latent_space=shape_latent_space, n_grids=n_grids, n_epoch=n_epoch,
-              schedule_sigma=schedule_sigma)
+    random_state = check_random_state(8)
+    init = random_state.rand(X.shape[0], n_dim_latent) * 2.0 - 1.0
 
-    som.fit()
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111,aspect='equal')
-    # ax.scatter(som.ls.data[:, 0], som.ls.data[:, 1])
-    # plt.show()
+    som = SOM(X=X, latent_dim=n_dim_latent, resolution=30,
+              init=init, sigma_max=1.0, sigma_min=0.1, tau=20)
+
+    som.fit(nb_epoch=n_epoch)
 
     color_sequence = np.array(px.colors.qualitative.Set2)
     width_fig = None
@@ -47,14 +42,14 @@ def _main(app):
     # `dash_html_components`がHTMLタグを提供し、React.jsライブラリを使って実際の要素が生成される。
     # HTMLの開発と同じ感覚で外観を決めることが可能
 
-    # fig = px.scatter(x=som.ls.data[:, 0], y=som.ls.data[:, 1])
+    # fig = px.scatter(x=som.Z[:, 0], y=som.Z[:, 1])
     fig_ls = go.Figure(
         layout=go.Layout(
             title=go.layout.Title(text='Latent space'),
-            xaxis={'range': [som.ls.data[:, 0].min()-0.05, som.ls.data[:, 0].max()+0.05]
+            xaxis={'range': [som.Z[:, 0].min()-0.05, som.Z[:, 0].max()+0.05]
                    },
             yaxis={
-                'range': [som.ls.data[:, 1].min()-0.05, som.ls.data[:, 1].max()+0.05],
+                'range': [som.Z[:, 1].min()-0.05, som.Z[:, 1].max()+0.05],
                 'scaleanchor': 'x',
                 'scaleratio': 1.0
             },
@@ -64,15 +59,15 @@ def _main(app):
         )
     )
     # draw contour of mapping
-    fig_ls.add_trace(go.Contour(x=som.ls.grids[:, 0], y=som.ls.grids[:, 1],
-                                z=som.os.grids[:, 0], colorscale='GnBu_r',
+    fig_ls.add_trace(go.Contour(x=som.Zeta[:, 0], y=som.Zeta[:, 1],
+                                z=som.Y[:, 0], colorscale='GnBu_r',
                                 line_smoothing=0.85,
                                 contours_coloring='heatmap', name='cp'
                                 )
                      )
     # draw invisible grids to click
     fig_ls.add_trace(
-        go.Scatter(x=som.ls.grids[:, 0], y=som.ls.grids[:, 1], mode='markers',
+        go.Scatter(x=som.Zeta[:, 0], y=som.Zeta[:, 1], mode='markers',
                    visible=True,
                    marker=dict(symbol='square', size=10, opacity=0.0,color='black'),
                    name='latent space')
@@ -82,7 +77,7 @@ def _main(app):
     # draw latent variables
     fig_ls.add_trace(
         go.Scatter(
-            x=som.ls.data[:, 0], y=som.ls.data[:, 1],
+            x=som.Z[:, 0], y=som.Z[:, 1],
             mode='markers', name='latent variable',
             marker=dict(
                 size=10,
@@ -122,7 +117,7 @@ def _main(app):
         )
     )
     fig_bar.add_trace(
-        go.Bar(x=iris.feature_names, y=np.zeros(som.os.data.shape[1]),
+        go.Bar(x=iris.feature_names, y=np.zeros(som.X.shape[1]),
                marker=dict(color=color_sequence[len(np.unique(iris.target))])
                )
     )
@@ -168,19 +163,19 @@ def _main(app):
         Input(component_id='left-graph', component_property='clickData')
     )
     def update_bar(clickData):
-        print(clickData)
+        # print(clickData)
         if clickData is not None:
             index = clickData['points'][0]['pointIndex']
-            print('index={}'.format(index))
+            # print('index={}'.format(index))
             if clickData['points'][0]['curveNumber'] == index_z:
-                print('clicked latent variable')
+                # print('clicked latent variable')
                 # if latent variable is clicked
-                fig_bar.update_traces(y=som.os.data[index])
+                fig_bar.update_traces(y=som.X[index])
                 fig_ls.update_traces(visible=False, selector=dict(name='clicked_point'))
             elif clickData['points'][0]['curveNumber'] == index_grids:
-                print('clicked map')
+                # print('clicked map')
                 # if contour is clicked
-                fig_bar.update_traces(y=som.os.grids[index])
+                fig_bar.update_traces(y=som.Y[index])
             # elif clickData['points'][0]['curveNumber'] == 0:
             #     print('clicked heatmap')
             return fig_bar
@@ -199,16 +194,16 @@ def _main(app):
             return dash.no_update
         else:
             clicked_id_text = ctx.triggered[0]['prop_id'].split('.')[0]
-            print(clicked_id_text)
+            # print(clicked_id_text)
             if clicked_id_text == 'feature_dropdown':
-                print(index_selected_feature)
-                fig_ls.update_traces(z=som.os.grids[:, index_selected_feature], selector=dict(type='contour'))
+                # print(index_selected_feature)
+                fig_ls.update_traces(z=som.Y[:, index_selected_feature], selector=dict(type='contour'))
                 return fig_ls
             elif clicked_id_text == 'left-graph':
                 index_clicked = clickData['points'][0]['pointIndex']
                 if clickData['points'][0]['curveNumber'] == index_grids:
                     # if contour is clicked
-                    print('clicked map')
+                    # print('clicked map')
                     fig_ls.update_traces(
                         x=np.array(clickData['points'][0]['x']),
                         y=np.array(clickData['points'][0]['y']),
@@ -219,7 +214,7 @@ def _main(app):
                         selector=dict(name='clicked_point')
                     )
                 elif clickData['points'][0]['curveNumber'] == index_z:
-                    print('clicked latent variable')
+                    # print('clicked latent variable')
                     fig_ls.update_traces(
                         x=np.array(clickData['points'][0]['x']),
                         y=np.array(clickData['points'][0]['y']),
