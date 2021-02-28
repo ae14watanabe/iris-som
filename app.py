@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 import numpy as np
 from dash.dependencies import Input, Output
 import json
+import copy
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 # ファイル名をアプリ名として起動。その際に外部CSSを指定できる。
@@ -42,7 +43,7 @@ height_fig = None
 # HTMLの開発と同じ感覚で外観を決めることが可能
 
 # fig = px.scatter(x=som.Z[:, 0], y=som.Z[:, 1])
-fig_ls = go.Figure(
+base_fig_ls = go.Figure(
     layout=go.Layout(
         title=go.layout.Title(text='Latent space'),
         xaxis={'range': [som.Z[:, 0].min()-0.05, som.Z[:, 0].max()+0.05]
@@ -58,14 +59,14 @@ fig_ls = go.Figure(
     )
 )
 # draw contour of mapping
-fig_ls.add_trace(go.Contour(x=som.Zeta[:, 0], y=som.Zeta[:, 1],
-                            z=som.Y[:, 0], colorscale='GnBu_r',
-                            line_smoothing=0.85,
-                            contours_coloring='heatmap', name='cp'
-                            )
-                 )
+base_fig_ls.add_trace(go.Contour(x=som.Zeta[:, 0], y=som.Zeta[:, 1],
+                                 z=som.Y[:, 0], colorscale='GnBu_r',
+                                 line_smoothing=0.85,
+                                 contours_coloring='heatmap', name='cp'
+                                 )
+                      )
 # draw invisible grids to click
-fig_ls.add_trace(
+base_fig_ls.add_trace(
     go.Scatter(x=som.Zeta[:, 0], y=som.Zeta[:, 1], mode='markers',
                visible=True,
                marker=dict(symbol='square', size=10, opacity=0.0,color='black'),
@@ -74,7 +75,7 @@ fig_ls.add_trace(
 index_grids = 1
 
 # draw latent variables
-fig_ls.add_trace(
+base_fig_ls.add_trace(
     go.Scatter(
         x=som.Z[:, 0], y=som.Z[:, 1],
         mode='markers', name='latent variable',
@@ -91,7 +92,7 @@ fig_ls.add_trace(
 )
 index_z = 2
 # draw click point initialized by visible=False
-fig_ls.add_trace(
+base_fig_ls.add_trace(
     go.Scatter(
         x=np.array(0.0), y=np.array(0.0),
         visible=False,
@@ -107,7 +108,7 @@ fig_ls.add_trace(
         name='clicked_point'
     )
 )
-fig_bar = go.Figure(
+base_fig_bar = go.Figure(
     layout=go.Layout(
         title=go.layout.Title(text='Feature bars'),
         yaxis={'range': [0, X.max()]},
@@ -115,15 +116,19 @@ fig_bar = go.Figure(
         height=height_fig
     )
 )
-fig_bar.add_trace(
+base_fig_bar.add_trace(
     go.Bar(x=iris.feature_names, y=np.zeros(som.X.shape[1]),
            marker=dict(color=color_sequence[len(np.unique(iris.target))])
            )
 )
 
-bar_data_store = dcc.Store(
+bar_figure_store = dcc.Store(
     id='bar-figure-store',
-    data=fig_bar
+    storage_type='session'
+)
+map_figure_store = dcc.Store(
+    id='map-figure-store',
+    storage_type='session'
 )
 config = {'displayModeBar': False}
 app.layout = html.Div(children=[
@@ -133,12 +138,12 @@ app.layout = html.Div(children=[
     # html.Div(children='by component plance of SOM.'),
     # `dash_core_components`が`plotly`に従う機能を提供する。
     # HTMLではSVG要素として表現される。
-    bar_data_store,
+    bar_figure_store,
     html.Div(
         [
             dcc.Graph(
-                id='left-graph',
-                figure=fig_ls,
+                id='map-graph',
+                figure=base_fig_ls,
                 config=config
             ),
             html.P('Feature as contour'),
@@ -153,7 +158,7 @@ app.layout = html.Div(children=[
     ),
     html.Div(
         [dcc.Graph(
-            id='right-graph',
+            id='bar-graph',
             # figure=fig_bar,
             # config=config
         ),
@@ -173,15 +178,16 @@ app.clientside_callback(
         return data
     }
     """,
-    Output('right-graph', 'figure'),
+    Output('bar-graph', 'figure'),
     Input('bar-figure-store', 'data')
 )
 @app.callback(
     Output('bar-figure-store', 'data'),
-    Input('left-graph', component_property='clickData')
+    Input('map-graph', component_property='clickData')
 )
 def update_bar(clickData):
     print(clickData)
+    fig_bar = copy.deepcopy(base_fig_bar)
     if clickData is not None:
         index = clickData['points'][0]['pointIndex']
         # print('index={}'.format(index))
@@ -190,7 +196,7 @@ def update_bar(clickData):
             # if latent variable is clicked
             # data[0]['y'] = som.X[index]
             fig_bar.update_traces(y=som.X[index])
-            print(fig_bar)
+            print(base_fig_bar)
             # fig_ls.update_traces(visible=False, selector=dict(name='clicked_point'))
             return fig_bar
         elif clickData['points'][0]['curveNumber'] == index_grids:
@@ -212,8 +218,8 @@ def update_bar(clickData):
 
 # Define callback function when data is clicked by normal callback
 # @app.callback(
-#     Output(component_id='right-graph', component_property='figure'),
-#     Input(component_id='left-graph', component_property='clickData')
+#     Output(component_id='bar-graph', component_property='figure'),
+#     Input(component_id='map-graph', component_property='clickData')
 # )
 # def update_bar(clickData):
 #     # print(clickData)
@@ -236,9 +242,9 @@ def update_bar(clickData):
 #         return dash.no_update
 
 @app.callback(
-    Output(component_id='left-graph', component_property='figure'),
+    Output(component_id='map-graph', component_property='figure'),
     [Input(component_id='feature_dropdown', component_property='value'),
-     Input(component_id='left-graph', component_property='clickData')]
+     Input(component_id='map-graph', component_property='clickData')]
 )
 def update_ls(index_selected_feature, clickData):
     # print(clickData)
@@ -251,14 +257,14 @@ def update_ls(index_selected_feature, clickData):
         # print(clicked_id_text)
         if clicked_id_text == 'feature_dropdown':
             # print(index_selected_feature)
-            fig_ls.update_traces(z=som.Y[:, index_selected_feature],
-                                 selector=dict(type='contour', name='cp'))
-            return fig_ls
-        elif clicked_id_text == 'left-graph':
+            base_fig_ls.update_traces(z=som.Y[:, index_selected_feature],
+                                      selector=dict(type='contour', name='cp'))
+            return base_fig_ls
+        elif clicked_id_text == 'map-graph':
             if clickData['points'][0]['curveNumber'] == index_grids:
                 # if contour is clicked
                 # print('clicked map')
-                fig_ls.update_traces(
+                base_fig_ls.update_traces(
                     x=np.array(clickData['points'][0]['x']),
                     y=np.array(clickData['points'][0]['y']),
                     visible=True,
@@ -269,7 +275,7 @@ def update_ls(index_selected_feature, clickData):
                 )
             elif clickData['points'][0]['curveNumber'] == index_z:
                 # print('clicked latent variable')
-                fig_ls.update_traces(
+                base_fig_ls.update_traces(
                     x=np.array(clickData['points'][0]['x']),
                     y=np.array(clickData['points'][0]['y']),
                     visible=True,
@@ -281,9 +287,9 @@ def update_ls(index_selected_feature, clickData):
                 # if latent variable is clicked
                 # fig_ls.update_traces(visible=False, selector=dict(name='clicked_point'))
 
-            fig_ls.update_traces(z=som.Y[:, index_selected_feature],
-                                 selector=dict(type='contour', name='cp'))
-            return fig_ls
+            base_fig_ls.update_traces(z=som.Y[:, index_selected_feature],
+                                      selector=dict(type='contour', name='cp'))
+            return base_fig_ls
         else:
             return dash.no_update
 
