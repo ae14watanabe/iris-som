@@ -9,7 +9,7 @@ import dash_html_components as html
 import plotly.graph_objects as go
 import numpy as np
 from dash.dependencies import Input, Output
-
+import json
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 # ファイル名をアプリ名として起動。その際に外部CSSを指定できる。
@@ -121,6 +121,10 @@ fig_bar.add_trace(
            )
 )
 
+bar_data_store = dcc.Store(
+    id='bar-figure-store',
+    data=fig_bar
+)
 config = {'displayModeBar': False}
 app.layout = html.Div(children=[
     # `dash_html_components`が提供するクラスは`childlen`属性を有している。
@@ -129,6 +133,7 @@ app.layout = html.Div(children=[
     # html.Div(children='by component plance of SOM.'),
     # `dash_core_components`が`plotly`に従う機能を提供する。
     # HTMLではSVG要素として表現される。
+    bar_data_store,
     html.Div(
         [
             dcc.Graph(
@@ -149,37 +154,86 @@ app.layout = html.Div(children=[
     html.Div(
         [dcc.Graph(
             id='right-graph',
-            figure=fig_bar,
-            config=config
-        )],
+            # figure=fig_bar,
+            # config=config
+        ),
+        html.Details([
+            html.Summary('Contents of figure storage'),
+            dcc.Markdown(
+                id='clientside-figure-json'
+            )
+        ])
+        ],
         style={'display': 'inline-block', 'width': '49%'}
     )
 ])
-
-# Define callback function when data is clicked
+app.clientside_callback(
+    """
+    function(data){
+        return data
+    }
+    """,
+    Output('right-graph', 'figure'),
+    Input('bar-figure-store', 'data')
+)
 @app.callback(
-    Output(component_id='right-graph', component_property='figure'),
-    Input(component_id='left-graph', component_property='clickData')
+    Output('bar-figure-store', 'data'),
+    Input('left-graph', component_property='clickData')
 )
 def update_bar(clickData):
-    # print(clickData)
+    print(clickData)
     if clickData is not None:
         index = clickData['points'][0]['pointIndex']
         # print('index={}'.format(index))
         if clickData['points'][0]['curveNumber'] == index_z:
             # print('clicked latent variable')
             # if latent variable is clicked
+            # data[0]['y'] = som.X[index]
             fig_bar.update_traces(y=som.X[index])
-            fig_ls.update_traces(visible=False, selector=dict(name='clicked_point'))
+            print(fig_bar)
+            # fig_ls.update_traces(visible=False, selector=dict(name='clicked_point'))
+            return fig_bar
         elif clickData['points'][0]['curveNumber'] == index_grids:
             # print('clicked map')
             # if contour is clicked
             fig_bar.update_traces(y=som.Y[index])
-        # elif clickData['points'][0]['curveNumber'] == 0:
-        #     print('clicked heatmap')
-        return fig_bar
+            # data[0]['y'] = som.X[index]
+            return fig_bar
+        else:
+            return fig_bar
     else:
-        return dash.no_update
+        return fig_bar
+# @app.callback(
+#     Output('clientside-figure-json', 'children'),
+#     Input('bar-figure-store', 'data')
+# )
+# def generated_figure_json(data):
+#     return '```\n'+json.dumps(data, indent=2)+'\n```'
+
+# Define callback function when data is clicked by normal callback
+# @app.callback(
+#     Output(component_id='right-graph', component_property='figure'),
+#     Input(component_id='left-graph', component_property='clickData')
+# )
+# def update_bar(clickData):
+#     # print(clickData)
+#     if clickData is not None:
+#         index = clickData['points'][0]['pointIndex']
+#         # print('index={}'.format(index))
+#         if clickData['points'][0]['curveNumber'] == index_z:
+#             # print('clicked latent variable')
+#             # if latent variable is clicked
+#             fig_bar.update_traces(y=som.X[index])
+#             fig_ls.update_traces(visible=False, selector=dict(name='clicked_point'))
+#         elif clickData['points'][0]['curveNumber'] == index_grids:
+#             # print('clicked map')
+#             # if contour is clicked
+#             fig_bar.update_traces(y=som.Y[index])
+#         # elif clickData['points'][0]['curveNumber'] == 0:
+#         #     print('clicked heatmap')
+#         return fig_bar
+#     else:
+#         return dash.no_update
 
 @app.callback(
     Output(component_id='left-graph', component_property='figure'),
