@@ -139,6 +139,7 @@ app.layout = html.Div(children=[
     # `dash_core_components`が`plotly`に従う機能を提供する。
     # HTMLではSVG要素として表現される。
     bar_figure_store,
+    map_figure_store,
     html.Div(
         [
             dcc.Graph(
@@ -159,8 +160,8 @@ app.layout = html.Div(children=[
     html.Div(
         [dcc.Graph(
             id='bar-graph',
-            # figure=fig_bar,
-            # config=config
+            figure=base_fig_bar,
+            config=config
         ),
         html.Details([
             html.Summary('Contents of figure storage'),
@@ -241,8 +242,17 @@ def update_bar(clickData):
 #     else:
 #         return dash.no_update
 
+app.clientside_callback(
+    """
+    function(data){
+        return data
+    }
+    """,
+    Output('map-graph', 'figure'),
+    Input('map-figure-store', 'data')
+)
 @app.callback(
-    Output(component_id='map-graph', component_property='figure'),
+    Output(component_id='map-figure-store', component_property='data'),
     [Input(component_id='feature_dropdown', component_property='value'),
      Input(component_id='map-graph', component_property='clickData')]
 )
@@ -253,43 +263,50 @@ def update_ls(index_selected_feature, clickData):
     if not ctx.triggered or ctx.triggered[0]['value'] is None:
         return dash.no_update
     else:
+        fig_ls = copy.deepcopy(base_fig_ls)
         clicked_id_text = ctx.triggered[0]['prop_id'].split('.')[0]
         # print(clicked_id_text)
         if clicked_id_text == 'feature_dropdown':
             # print(index_selected_feature)
-            base_fig_ls.update_traces(z=som.Y[:, index_selected_feature],
+            fig_ls.update_traces(z=som.Y[:, index_selected_feature],
                                       selector=dict(type='contour', name='cp'))
-            return base_fig_ls
+            return fig_ls
         elif clicked_id_text == 'map-graph':
-            if clickData['points'][0]['curveNumber'] == index_grids:
-                # if contour is clicked
-                # print('clicked map')
-                base_fig_ls.update_traces(
-                    x=np.array(clickData['points'][0]['x']),
-                    y=np.array(clickData['points'][0]['y']),
-                    visible=True,
-                    marker=dict(
-                        symbol='x'
-                    ),
-                    selector=dict(name='clicked_point', type='scatter')
-                )
-            elif clickData['points'][0]['curveNumber'] == index_z:
-                # print('clicked latent variable')
-                base_fig_ls.update_traces(
-                    x=np.array(clickData['points'][0]['x']),
-                    y=np.array(clickData['points'][0]['y']),
-                    visible=True,
-                    marker=dict(
-                        symbol='circle'
-                    ),
-                    selector=dict(name='clicked_point', type='scatter')
-                )
-                # if latent variable is clicked
-                # fig_ls.update_traces(visible=False, selector=dict(name='clicked_point'))
+            if clickData is not None:
+                if clickData['points'][0]['curveNumber'] == index_grids:
+                    # if contour is clicked
+                    # print('clicked map')
+                    fig_ls.update_traces(
+                        x=np.array(clickData['points'][0]['x']),
+                        y=np.array(clickData['points'][0]['y']),
+                        visible=True,
+                        marker=dict(
+                            symbol='x'
+                        ),
+                        selector=dict(name='clicked_point', type='scatter')
+                    )
+                    return fig_ls
+                elif clickData['points'][0]['curveNumber'] == index_z:
+                    # print('clicked latent variable')
+                    fig_ls.update_traces(
+                        x=np.array(clickData['points'][0]['x']),
+                        y=np.array(clickData['points'][0]['y']),
+                        visible=True,
+                        marker=dict(
+                            symbol='circle'
+                        ),
+                        selector=dict(name='clicked_point', type='scatter')
+                    )
+                    # if latent variable is clicked
+                    # fig_ls.update_traces(visible=False, selector=dict(name='clicked_point'))
+                    return fig_ls
+                else:
+                    return dash.no_update
+            else:
+                return dash.no_update
 
-            base_fig_ls.update_traces(z=som.Y[:, index_selected_feature],
-                                      selector=dict(type='contour', name='cp'))
-            return base_fig_ls
+            # fig_ls.update_traces(z=som.Y[:, index_selected_feature],
+            #                           selector=dict(type='contour', name='cp'))
         else:
             return dash.no_update
 
