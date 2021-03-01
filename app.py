@@ -124,10 +124,12 @@ base_fig_bar.add_trace(
 
 bar_figure_store = dcc.Store(
     id='bar-figure-store',
+    data=base_fig_bar,
     storage_type='session'
 )
 map_figure_store = dcc.Store(
     id='map-figure-store',
+    data=base_fig_ls,
     storage_type='session'
 )
 config = {'displayModeBar': False}
