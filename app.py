@@ -125,12 +125,12 @@ base_fig_bar.add_trace(
 bar_figure_store = dcc.Store(
     id='bar-figure-store',
     data=base_fig_bar,
-    storage_type='session'
+    storage_type='memory'
 )
 map_figure_store = dcc.Store(
     id='map-figure-store',
     data=base_fig_ls,
-    storage_type='session'
+    storage_type='memory'
 )
 config = {'displayModeBar': False}
 app.layout = html.Div(children=[
@@ -164,13 +164,13 @@ app.layout = html.Div(children=[
             id='bar-graph',
             figure=base_fig_bar,
             config=config
-        ),
-        html.Details([
-            html.Summary('Contents of figure storage'),
-            dcc.Markdown(
-                id='clientside-figure-json'
-            )
-        ])
+        )
+        # html.Details([
+        #     html.Summary('Contents of figure storage'),
+        #     dcc.Markdown(
+        #         id='clientside-figure-json'
+        #     )
+        # ])
         ],
         style={'display': 'inline-block', 'width': '49%'}
     )
