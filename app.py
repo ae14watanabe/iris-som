@@ -10,7 +10,6 @@ import plotly.graph_objects as go
 import numpy as np
 from dash.dependencies import Input, Output
 import json
-import copy
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 # ファイル名をアプリ名として起動。その際に外部CSSを指定できる。
@@ -160,17 +159,18 @@ app.layout = html.Div(children=[
         style={'display': 'inline-block', 'width': '49%'}
     ),
     html.Div(
-        [dcc.Graph(
-            id='bar-graph',
-            figure=base_fig_bar,
-            config=config
-        )
-        # html.Details([
-        #     html.Summary('Contents of figure storage'),
-        #     dcc.Markdown(
-        #         id='clientside-figure-json'
-        #     )
-        # ])
+        [
+            dcc.Graph(
+                id='bar-graph',
+                figure=base_fig_bar,
+                config=config
+            ),
+            html.Details([
+                html.Summary('Contents of figure storage'),
+                dcc.Markdown(
+                    id='clientside-figure-json'
+                )
+            ])
         ],
         style={'display': 'inline-block', 'width': '49%'}
     )
@@ -186,11 +186,13 @@ app.clientside_callback(
 )
 @app.callback(
     Output('bar-figure-store', 'data'),
-    Input('map-graph', component_property='clickData')
+    Input('map-graph', component_property='clickData'),
+    Input('bar-figure-store', 'data')
 )
-def update_bar(clickData):
+def update_bar(clickData, prev_fig_bar_json):
     print(clickData)
-    fig_bar = copy.deepcopy(base_fig_bar)
+    fig_bar = go.Figure(**prev_fig_bar_json)
+    # print(prev_fig_bar_json)
     if clickData is not None:
         index = clickData['points'][0]['pointIndex']
         # print('index={}'.format(index))
@@ -209,15 +211,15 @@ def update_bar(clickData):
             # data[0]['y'] = som.X[index]
             return fig_bar
         else:
-            return fig_bar
+            return dash.no_update
     else:
-        return fig_bar
-# @app.callback(
-#     Output('clientside-figure-json', 'children'),
-#     Input('bar-figure-store', 'data')
-# )
-# def generated_figure_json(data):
-#     return '```\n'+json.dumps(data, indent=2)+'\n```'
+        return dash.no_update
+@app.callback(
+    Output('clientside-figure-json', 'children'),
+    Input('bar-figure-store', 'data')
+)
+def generated_figure_json(data):
+    return '```\n'+json.dumps(data, indent=2)+'\n```'
 
 # Define callback function when data is clicked by normal callback
 # @app.callback(
@@ -256,29 +258,30 @@ app.clientside_callback(
 @app.callback(
     Output(component_id='map-figure-store', component_property='data'),
     [Input(component_id='feature_dropdown', component_property='value'),
-     Input(component_id='map-graph', component_property='clickData')]
+     Input(component_id='map-graph', component_property='clickData'),
+     Input(component_id='map-figure-store', component_property='data')]
 )
-def update_ls(index_selected_feature, clickData):
+def update_ls(index_selected_feature, clickData, prev_fig_map_json):
     # print(clickData)
     print(index_selected_feature, clickData)
     ctx = dash.callback_context
     if not ctx.triggered or ctx.triggered[0]['value'] is None:
         return dash.no_update
     else:
-        fig_ls = copy.deepcopy(base_fig_ls)
+        fig_map = go.Figure(**prev_fig_map_json)
         clicked_id_text = ctx.triggered[0]['prop_id'].split('.')[0]
         # print(clicked_id_text)
         if clicked_id_text == 'feature_dropdown':
             # print(index_selected_feature)
-            fig_ls.update_traces(z=som.Y[:, index_selected_feature],
+            fig_map.update_traces(z=som.Y[:, index_selected_feature],
                                       selector=dict(type='contour', name='cp'))
-            return fig_ls
+            return fig_map
         elif clicked_id_text == 'map-graph':
             if clickData is not None:
                 if clickData['points'][0]['curveNumber'] == index_grids:
                     # if contour is clicked
                     # print('clicked map')
-                    fig_ls.update_traces(
+                    fig_map.update_traces(
                         x=np.array(clickData['points'][0]['x']),
                         y=np.array(clickData['points'][0]['y']),
                         visible=True,
@@ -287,10 +290,10 @@ def update_ls(index_selected_feature, clickData):
                         ),
                         selector=dict(name='clicked_point', type='scatter')
                     )
-                    return fig_ls
+                    return fig_map
                 elif clickData['points'][0]['curveNumber'] == index_z:
                     # print('clicked latent variable')
-                    fig_ls.update_traces(
+                    fig_map.update_traces(
                         x=np.array(clickData['points'][0]['x']),
                         y=np.array(clickData['points'][0]['y']),
                         visible=True,
@@ -301,7 +304,7 @@ def update_ls(index_selected_feature, clickData):
                     )
                     # if latent variable is clicked
                     # fig_ls.update_traces(visible=False, selector=dict(name='clicked_point'))
-                    return fig_ls
+                    return fig_map
                 else:
                     return dash.no_update
             else:
